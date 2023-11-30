@@ -3,7 +3,7 @@
 *.png
 .vscode
 *.json
-*/.DS_store
+*/.DS_Store
 *.out
 *.o
 *.exe
