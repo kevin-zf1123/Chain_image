@@ -1,0 +1,10 @@
+*.jpeg
+*.jpg
+*.png
+.vscode
+*.json
+*/.DS_store
+*.out
+*.o
+*.exe
+main
