@@ -9,3 +9,7 @@
 - Added changes to main.cpp
 - Added changes to pixel_tree.h
 
+# [0.0.2] - 2023-12-1
+- Added : rgba.h
+- Fixed: unwanted steps in recursion
+- Removed: pixel_tree.h
