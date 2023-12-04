@@ -8,36 +8,46 @@ struct rgba
     float b;
     float a;
 };
-
+struct vct2
+{
+    int x;
+    int y;
+};
 
 class pixel_tree_node
 {
 public:
     rgba pixel;
-    pixel_tree_node *left;
-    pixel_tree_node *right;
-    int width;
-    int height;
+    pixel_tree_node *leftup;
+    pixel_tree_node *rightup;
+    pixel_tree_node *leftdown;
+    pixel_tree_node *rightdown;
+    vct2 sz;
     //constructor
-    pixel_tree_node(rgba init,int w,int h) {
+    pixel_tree_node(rgba init,vct2 vct2) {
         // Initialize the fields of the pixel_tree_node object
         pixel.r = init.r;
         pixel.g = init.g;
         pixel.b = init.b;
         pixel.a = init.a;
-        left = nullptr;
-        right = nullptr;
-        width = w;
-        height = h;
+        leftup = nullptr;
+        rightup = nullptr;
+        leftdown = nullptr;
+        rightdown = nullptr;
+        sz = vct2;
     }
     //destructor
     ~pixel_tree_node() {
-        delete left;
-        delete right;
+        delete leftup;
+        delete rightup;
+        delete leftdown;
+        delete rightdown;
     }
-    void append (rgba p_left,rgba p_right,int r_w, int r_h,int l_w, int l_h) {
-        this->left = new pixel_tree_node(p_left,l_w,l_h);
-        this->right = new pixel_tree_node(p_right,r_w,r_h);
+    void append (rgba p_left_up,rgba p_right_up,rgba p_left_down,rgba p_right_down, vct2 lu,vct2 ru, vct2 ld, vct2 rd) {
+        this->leftup = new pixel_tree_node(p_left_up,lu);
+        this->rightup = new pixel_tree_node(p_right_up,ru);
+        this->leftdown = new pixel_tree_node(p_left_down,ld);
+        this->rightdown = new pixel_tree_node(p_right_down,rd);
     }
 };
 class pixel_tree
@@ -59,7 +69,7 @@ public:
 };
 rgba *getAverage(rgba**matrix,int x,int y,int width,int height);
 int getHighestBit(int n);
-bool splitstate(int width_helper,int height_helper,int width, int height, pixel_tree_node *node, rgba **matrix, bool direction);
+void splitstate(int &width_helper,int &height_helper,int width, int height, pixel_tree_node *node, rgba **matrix);
 rgba rgba_minus(rgba a, rgba b);
 rgba *getAverage(rgba**matrix,int x,int y,int width,int height)
 {
@@ -97,44 +107,50 @@ int getHighestBit(int n) {
     return highestBit;
 }
 
-bool splitstate(int width_helper, int height_helper, int width, int height, pixel_tree_node* node, rgba** matrix, bool direction) {
-    while (width_helper <= width && height_helper <= height) {
+void splitstate(int& width_helper,int& height_helper, int width, int height, pixel_tree_node* node, rgba** matrix) {
+    while (width_helper < width && height_helper < height) {
         int width_node = pow(2, getHighestBit(width - 1));
         int height_node = pow(2, getHighestBit(height - 1));
-        
-        rgba left_average = *getAverage(matrix, width_helper, height_helper, width_node, height_node);
-        rgba right_average = *getAverage(matrix, width_helper, height - height_helper, width_node, height - height_node);
-        rgba left_vector = rgba_minus(left_average, *getAverage(matrix, width, height, width_node, height_node));
-        rgba right_vector = rgba_minus(right_average, *getAverage(matrix, width, height, width_node, height_node));
-        
-        if (direction == 0) {
-            node->append(left_average, right_average, width_node, height_node, width - width_node, height_node);
-            if (width_node != 1) {
-                width_node >>= 1;
-            } else {
-                ++width_helper;
-            }
-        } else {
-            node->append(left_average, right_average, width_node, height_node, width_node, height - height_node);
-            if (height_node != 1) {
-                height_node >>= 1;
-            } else {
-                ++height_helper;
-            }
+        vct2 lu = {width_helper, height_helper};
+        vct2 ru = {width_helper + width_node, height_helper};
+        vct2 ld = {width_helper, height_helper + height_node};
+        vct2 rd = {width_helper + width_node, height_helper + height_node};
+        vct2 lusz = {width_node,height_node};
+        vct2 rusz = {width - width_node, height_node};
+        vct2 ldsz = {width_node, height - height_node};
+        vct2 rdsz = {width - width_node, height - height_node};
+        //get average
+        rgba left_up_average = *getAverage(matrix, lu.x, lu.y, lusz.x, lusz.y);
+        rgba left_down_average = *getAverage(matrix, ld.x, ld.y, ldsz.x, ldsz.y);
+        rgba right_up_average = *getAverage(matrix, ru.x, ru.y, rusz.x, rusz.y);
+        rgba right_down_average = *getAverage(matrix, rd.x,rd.y, rdsz.x, rdsz.y);
+        //subtract
+        rgba left_up_vector = rgba_minus(left_up_average, *getAverage(matrix,width_helper,height_helper,width,height));
+        rgba left_down_vector = rgba_minus(left_down_average, *getAverage(matrix,width_helper,height_helper,width,height));
+        rgba right_up_vector = rgba_minus(right_up_average, *getAverage(matrix,width_helper,height_helper,width,height));
+        rgba right_down_vector = rgba_minus(right_down_average, *getAverage(matrix,width_helper,height_helper,width,height));
+        //append
+        node->append(left_up_vector, right_up_vector, left_down_vector, right_down_vector,lusz,rusz,ldsz,rdsz);
+
+        if (width_node==1 ){
+            width_node >>=1;
+        }else {
+            width_helper += width_node;
         }
-        
-        direction = !direction;
-        direction = splitstate(width_helper, height_helper, width_node, height_node, node->left, matrix, direction);
-        
-        if (direction == 0) {
-            width_node <<= 1;
-            direction = splitstate(width_helper, height_helper, width - width_node, height_node, node->right, matrix, direction);
-        } else {
-            height_node <<= 1;
-            direction = splitstate(width_helper, height_helper, width_node, height - height_node, node->right, matrix, direction);
-        }   
+        if (height_node == 1) {
+            height_node >>= 1;
+        }else {
+            height_helper += height_node;
+        }
+
+        splitstate(width_helper, height_helper, width_node, height_node, node->leftup, matrix);
+        splitstate(width_helper, height_helper, width_node, height-height_node, node->leftdown, matrix);
+        splitstate(width_helper, height_helper, width-width_node, height-height_node, node->rightdown, matrix);
+        splitstate(width_helper, height_helper, width-width_node, height_node, node->rightup,matrix);
+        width_node <<= 1;
+        height_node <<= 1;
+
     }
-    return direction;
 }
 
 rgba rgba_minus(rgba a, rgba b) {
