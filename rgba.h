@@ -1,6 +1,10 @@
 #ifndef RGBA_H
 #define RGBA_H
 #include <cmath>
+#include <iostream>
+#include <fstream>
+#include <sstream>
+#include <memory>
 struct rgba
 {
     float r;
@@ -54,6 +58,14 @@ class pixel_tree
 {
 private:
     pixel_tree_node *root;
+    void inorderTraversal(pixel_tree_node *node){
+        if (node == nullptr) return;
+        inorderTraversal(node->leftup);
+        std::cout << node->pixel.r << " " << node->pixel.g << " " << node->pixel.b << " " << node->pixel.a << "\n";
+        inorderTraversal(node->rightup);
+        inorderTraversal(node->leftdown);
+        inorderTraversal(node->rightdown);
+    }
 public:
     //destructor
     ~pixel_tree() {
@@ -66,6 +78,62 @@ public:
     pixel_tree_node *getRoot() {
         return root;
     }
+    void printInorder (){
+        inorderTraversal(root);
+        std::cout << std::endl;
+    }
+    void setRoot(pixel_tree_node *root) {
+        this->root = root;
+    }
+
+void serializeNode(std::ostream& out, pixel_tree_node* node) {
+    if (node == nullptr) {
+        out << "null\n";
+        return;
+    }
+    out << node->pixel.r << " " << node->pixel.g << " " << node->pixel.b << " " << node->pixel.a << "\n";
+    out << node->sz.x << " " << node->sz.y << "\n";
+    serializeNode(out, node->leftup);
+    serializeNode(out, node->rightup);
+    serializeNode(out, node->leftdown);
+    serializeNode(out, node->rightdown);
+}
+
+void serializeTree(pixel_tree& tree, const std::string& filename) {
+    std::ofstream outFile(filename);
+    serializeNode(outFile, tree.getRoot());
+}
+
+pixel_tree_node* deserializeNode(std::istream& in) {
+    std::string line;
+    std::getline(in, line);
+    if (line == "null") return nullptr;
+
+    std::istringstream iss(line);
+    rgba color;
+    iss >> color.r >> color.g >> color.b >> color.a;
+
+    std::getline(in, line);
+    iss.str(line);
+    iss.clear();
+    vct2 sz;
+    iss >> sz.x >> sz.y;
+
+    pixel_tree_node* node = new pixel_tree_node(color, sz);
+    node->leftup = deserializeNode(in);
+    node->rightup = deserializeNode(in);
+    node->leftdown = deserializeNode(in);
+    node->rightdown = deserializeNode(in);
+
+    return node;
+}
+
+pixel_tree deserializeTree(const std::string& filename) {
+    std::ifstream inFile(filename);
+    pixel_tree tree;
+    tree.root = deserializeNode(inFile);
+    return tree;
+}
 };
 rgba *getAverage(rgba**matrix,int x,int y,int width,int height);
 int getHighestBit(int n);
@@ -96,6 +164,7 @@ rgba *getAverage(rgba**matrix,int x,int y,int width,int height)
     avg->b /= count;
     avg->a /= count;
     return avg;
+    delete avg;
 };
 
 int getHighestBit(int n) {
@@ -109,8 +178,8 @@ int getHighestBit(int n) {
 
 void splitstate(int& width_helper,int& height_helper, int width, int height, pixel_tree_node* node, rgba** matrix) {
     while (width_helper < width && height_helper < height) {
-        int width_node = pow(2, getHighestBit(width - 1));
-        int height_node = pow(2, getHighestBit(height - 1));
+        int width_node = pow(2, getHighestBit(width - 1)-1);
+        int height_node = pow(2, getHighestBit(height - 1)-1);
         vct2 lu = {width_helper, height_helper};
         vct2 ru = {width_helper + width_node, height_helper};
         vct2 ld = {width_helper, height_helper + height_node};
@@ -132,16 +201,6 @@ void splitstate(int& width_helper,int& height_helper, int width, int height, pix
         //append
         node->append(left_up_vector, right_up_vector, left_down_vector, right_down_vector,lusz,rusz,ldsz,rdsz);
 
-        if (width_node==1 ){
-            width_node >>=1;
-        }else {
-            width_helper += width_node;
-        }
-        if (height_node == 1) {
-            height_node >>= 1;
-        }else {
-            height_helper += height_node;
-        }
 
         splitstate(width_helper, height_helper, width_node, height_node, node->leftup, matrix);
         splitstate(width_helper, height_helper, width_node, height-height_node, node->leftdown, matrix);

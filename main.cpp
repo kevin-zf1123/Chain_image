@@ -58,11 +58,15 @@ int main(int argc, char* argv[]) {
     pixel_tree tree;
     pixel_tree_node *tree_root = tree.getRoot();
     tree_root = new pixel_tree_node(*getAverage(matrix, 0, 0, width, height), {width, height});
-    
+    tree.setRoot(tree_root);
     // Build the tree
     int width_helper = 0;
     int height_helper = 0;
-    splitstate(width_helper,height_helper,width,height,tree_root,matrix);
+    splitstate(width_helper,height_helper,width,height,tree.getRoot(),matrix);
+    //print
+    tree.printInorder();
+    // Serialize the tree
+    // tree.serializeTree(tree, "tree.txt");
     // Clean up memory
     jpeg_finish_decompress(&cinfo);
     jpeg_destroy_decompress(&cinfo);
